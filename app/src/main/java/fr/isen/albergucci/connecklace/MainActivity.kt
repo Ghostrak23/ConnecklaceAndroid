@@ -12,26 +12,37 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock.sleep
 import android.util.Log
-import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import fr.isen.albergucci.connecklace.databinding.ActivityMainBinding
-import kotlinx.coroutines.delay
-import java.nio.ByteBuffer
 import java.util.*
+import android.view.Window
+import android.view.WindowManager
 
-class MainActivity : AppCompatActivity() {
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
+
+class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var mMap: GoogleMap
     var bluetoothGatt: BluetoothGatt? = null
     var serviceUUID = UUID.fromString("0000feed-cc7a-482a-984a-7f2ed5b3e58f")
     private val characteristicButtonUUID = UUID.fromString("00001234-8e22-4541-9d4c-21edae82ed19")
     private val characteristicLatitudeUUID = UUID.fromString("0000adda-8e22-4541-9d4c-21edae82ed19")
     private val characteristicLongitudeUUID = UUID.fromString("00005678-8e22-4541-9d4c-21edae82ed19")
     private val configNotifications = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+
+    companion object {
+        var latitude: Double = 0.0
+        var longitude: Double = 0.0
+    }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private val enableBtActivityResult =
@@ -46,7 +57,7 @@ class MainActivity : AppCompatActivity() {
                     scanBlue
                 ) == PackageManager.PERMISSION_GRANTED){
                 Log.e("Scan","OK")
-               // startScan()
+                // startScan()
             }else{
                 Log.e("Scan","Pas Ok")
             }
@@ -73,18 +84,18 @@ class MainActivity : AppCompatActivity() {
                 enableNotifications(characteristicButton!!)
                 gatt?.readCharacteristic(characteristicButton)*/
 
-                    // Lecture de la caractéristique de latitude
-                    val characteristicLatitude = service?.getCharacteristic(characteristicLatitudeUUID)
-                    enableNotifications(characteristicLatitude!!)
-                    gatt?.readCharacteristic(characteristicLatitude)
+                // Lecture de la caractéristique de latitude
+                val characteristicLatitude = service?.getCharacteristic(characteristicLatitudeUUID)
+                enableNotifications(characteristicLatitude!!)
+                gatt?.readCharacteristic(characteristicLatitude)
 
-                    // Attente de la fin de la lecture de la caractéristique de latitude
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        // Lecture de la caractéristique de longitude
-                        val characteristicLongitude = service?.getCharacteristic(characteristicLongitudeUUID)
-                        enableNotifications(characteristicLongitude!!)
-                        gatt?.readCharacteristic(characteristicLongitude)
-                    }, 500) // Attendez 1 seconde avant de lire la caractéristique de longitude
+                // Attente de la fin de la lecture de la caractéristique de latitude
+                Handler(Looper.getMainLooper()).postDelayed({
+                    // Lecture de la caractéristique de longitude
+                    val characteristicLongitude = service?.getCharacteristic(characteristicLongitudeUUID)
+                    enableNotifications(characteristicLongitude!!)
+                    gatt?.readCharacteristic(characteristicLongitude)
+                }, 500) // Attendez 1 seconde avant de lire la caractéristique de longitude
             }
         }
 
@@ -111,19 +122,12 @@ class MainActivity : AppCompatActivity() {
                     val latitudeString = String(latitudeBytes)
 
                     // Convertir le String en Double
-                    val latitude = latitudeString.toDouble()
+                    latitude = latitudeString.toDouble()
                     Log.d("AQW", latitude.toString())
-
-                    // Envoyer la latitude à MapsActivity
-                    val intent = Intent(applicationContext, MapsActivity::class.java)
-                    intent.putExtra("latitude", latitude)
-
-                    val requestCode = 1 // Choisissez le code de requête approprié
-                    startActivityForResult(intent, requestCode)
 
                     // Mettre à jour l'interface utilisateur avec la latitude
                     runOnUiThread {
-                        binding.nombre.text = latitudeString
+                        updateMapMarker()
                     }
                     Log.d("Test", latitudeString)
                 }
@@ -137,15 +141,11 @@ class MainActivity : AppCompatActivity() {
                     val longitudeString = String(longitudeBytes)
 
                     // Convertir le String en Double
-                    val longitude = longitudeString.toDouble()
-
-                    // Envoyer la longitude à MapsActivity
-                    val intent = Intent(applicationContext, MapsActivity::class.java)
-                    intent.putExtra("longitude", longitude)
+                    longitude = longitudeString.toDouble()
 
                     // Mettre à jour l'interface utilisateur avec la longitude
                     runOnUiThread {
-                        binding.nombre2.text = longitudeString
+                        updateMapMarker()
                     }
                     Log.d("Test", longitudeString)
                 }
@@ -153,21 +153,23 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     @SuppressLint("MissingPermission")
     @RequiresApi(Build.VERSION_CODES.S)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
+        //Cette directive enlève la barre de titre
+        this.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        // Cette directive permet d'enlever la barre de notifications pour afficher l'application en plein écran
+        this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.gpsButton.setOnClickListener {
-            val intent = Intent(this, MapsActivity::class.java)
-            startActivity(intent)
-        }
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        val mapFragment = supportFragmentManager
+            .findFragmentById(R.id.map) as SupportMapFragment
+        mapFragment.getMapAsync(this)
 
         val bluetoothManager =
             getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -189,16 +191,6 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-
-   /* @SuppressLint("MissingPermission")
-    private fun startScan() {
-        // Démarrer le scan des appareils Bluetooth
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        val bluetoothAdapter = bluetoothManager.adapter
-        val deviceAddress = "00:80:E1:26:82:D8"
-        val device = bluetoothAdapter.getRemoteDevice(deviceAddress)
-        bluetoothGatt = device.connectGatt(this, false, bluetoothGattCallback)
-    }*/
 
     private fun getAllPermissions(): Array<String> {
         val listOfPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -234,5 +226,19 @@ class MainActivity : AppCompatActivity() {
         descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
         bluetoothGatt?.writeDescriptor(descriptor)
         bluetoothGatt?.setCharacteristicNotification(characteristic, true)
+    }
+
+    override fun onMapReady(googleMap: GoogleMap) {
+        mMap = googleMap
+
+        updateMapMarker()
+    }
+
+    private fun updateMapMarker() {
+        val gps = LatLng(latitude, longitude)
+        mMap.clear()
+        mMap.addMarker(MarkerOptions().position(gps).title("Position du chien"))
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(gps))
+        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(gps, 17f))
     }
 }
