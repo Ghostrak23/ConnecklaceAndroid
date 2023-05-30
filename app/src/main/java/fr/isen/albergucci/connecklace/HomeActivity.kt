@@ -3,6 +3,7 @@ package fr.isen.albergucci.connecklace
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Window
 import fr.isen.albergucci.connecklace.databinding.ActivityHomeBinding
 import fr.isen.albergucci.connecklace.databinding.ActivityMainBinding
 

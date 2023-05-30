@@ -34,9 +34,10 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
     private lateinit var mMap: GoogleMap
     var bluetoothGatt: BluetoothGatt? = null
     var serviceUUID = UUID.fromString("0000feed-cc7a-482a-984a-7f2ed5b3e58f")
-    private val characteristicButtonUUID = UUID.fromString("00001234-8e22-4541-9d4c-21edae82ed19")
     private val characteristicLatitudeUUID = UUID.fromString("0000adda-8e22-4541-9d4c-21edae82ed19")
     private val characteristicLongitudeUUID = UUID.fromString("00005678-8e22-4541-9d4c-21edae82ed19")
+    private val characteristicVitesseUUID = UUID.fromString("0000aacc-8e22-4541-9d4c-21edae82ed19")
+    private val characteristicTemperatureUUID = UUID.fromString("0000ddee-8e22-4541-9d4c-21edae82ed19")
     private val configNotifications = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
     companion object {
@@ -79,11 +80,6 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 val service = gatt?.getService(serviceUUID)
 
-                /*// Lecture de la caractéristique du bouton
-                val characteristicButton = service?.getCharacteristic(characteristicButtonUUID)
-                enableNotifications(characteristicButton!!)
-                gatt?.readCharacteristic(characteristicButton)*/
-
                 // Lecture de la caractéristique de latitude
                 val characteristicLatitude = service?.getCharacteristic(characteristicLatitudeUUID)
                 enableNotifications(characteristicLatitude!!)
@@ -95,7 +91,19 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     val characteristicLongitude = service?.getCharacteristic(characteristicLongitudeUUID)
                     enableNotifications(characteristicLongitude!!)
                     gatt?.readCharacteristic(characteristicLongitude)
-                }, 500) // Attendez 1 seconde avant de lire la caractéristique de longitude
+                }, 200)
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val characteristicVitesse = service?.getCharacteristic(characteristicVitesseUUID)
+                    enableNotifications(characteristicVitesse!!)
+                    gatt?.readCharacteristic(characteristicVitesse)
+                }, 400)
+
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val characteristicTemperature = service?.getCharacteristic(characteristicTemperatureUUID)
+                    enableNotifications(characteristicTemperature!!)
+                    gatt?.readCharacteristic(characteristicTemperature)
+                }, 600)
             }
         }
 
@@ -105,15 +113,7 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
             gatt: BluetoothGatt?,
             characteristic: BluetoothGattCharacteristic?
         ) {
-            Log.d("characteristic uuid", "${characteristic?.uuid}")
-            if (characteristic?.uuid == characteristicButtonUUID) {
-                val value = characteristic?.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, 0)
-                runOnUiThread {
-                    //binding.nombre.text = value.toString()
-                }
-                Log.d("Bluetooth", "Received value: $value")
-            }
-
+            Log.d("Test", characteristic?.uuid.toString())
             if (characteristic?.uuid == characteristicLatitudeUUID) {
                 // Récupérer les données de latitude en tant que tableau de bytes
                 val latitudeBytes = characteristic?.value
@@ -123,14 +123,12 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
 
                     // Convertir le String en Double
                     latitude = latitudeString.toDouble()
-                    Log.d("AQW", latitude.toString())
-
                     // Mettre à jour l'interface utilisateur avec la latitude
                     runOnUiThread {
                         updateMapMarker()
                     }
-                    Log.d("Test", latitudeString)
                 }
+                Log.d("Test", latitude.toString())
             }
 
             if (characteristic?.uuid == characteristicLongitudeUUID) {
@@ -147,7 +145,37 @@ class MainActivity : AppCompatActivity(), OnMapReadyCallback {
                     runOnUiThread {
                         updateMapMarker()
                     }
-                    Log.d("Test", longitudeString)
+                }
+                Log.d("Test", longitude.toString())
+            }
+
+            if (characteristic?.uuid == characteristicVitesseUUID) {
+                // Récupérer les données de longitude en tant que tableau de bytes
+                val vitesseBytes = characteristic?.value
+                if (vitesseBytes != null) {
+                    // Convertir les données en String
+                    val vitesseString = String(vitesseBytes)
+
+                    // Mettre à jour l'interface utilisateur avec la longitude
+                    runOnUiThread {
+                        binding.speed.text = "Accélération : " +vitesseString
+                    }
+                    Log.d("Test", vitesseString)
+                }
+            }
+
+            if (characteristic?.uuid == characteristicTemperatureUUID) {
+                // Récupérer les données de longitude en tant que tableau de bytes
+                val temperatureBytes = characteristic?.value
+                if (temperatureBytes != null) {
+                    // Convertir les données en String
+                    val temperatureString = String(temperatureBytes)
+
+                    // Mettre à jour l'interface utilisateur avec la longitude
+                    runOnUiThread {
+                        binding.temperature.text = "Température : " +temperatureString +"°C"
+                    }
+                    Log.d("Test", temperatureString)
                 }
             }
         }

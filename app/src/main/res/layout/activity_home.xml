@@ -45,7 +45,7 @@
         android:layout_marginTop="-20dp"
         android:layout_marginBottom="200dp"
         android:background="@color/blue"
-        android:text="LATITUDE"
+        android:text="@string/donnees"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
         app:layout_constraintBottom_toBottomOf="parent"
